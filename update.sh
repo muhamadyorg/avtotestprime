@@ -1,7 +1,8 @@
 #!/bin/bash
 set -e
 
-PROJECT_DIR="/www/wwwroot/avtotestprime.uz"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$SCRIPT_DIR"
 
 echo "AvtotestPrime yangilanmoqda..."
 cd "$PROJECT_DIR"
