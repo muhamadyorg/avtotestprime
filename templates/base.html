@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}AvtotestPrime{% endblock %}</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+    {% if user.is_authenticated %}
+    <nav class="navbar">
+        <div class="nav-brand">
+            <i class="fas fa-car"></i> AvtotestPrime
+        </div>
+        <button class="nav-toggle" onclick="toggleNav()">
+            <i class="fas fa-bars"></i>
+        </button>
+        <div class="nav-links" id="navLinks">
+            {% if user.is_staff %}
+            <a href="{% url 'admin_dashboard' %}" class="{% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">
+                <i class="fas fa-tachometer-alt"></i> Boshqaruv
+            </a>
+            <a href="{% url 'admin_questions' %}" class="{% if 'admin_question' in request.resolver_match.url_name %}active{% endif %}">
+                <i class="fas fa-list"></i> Savollar
+            </a>
+            <a href="{% url 'admin_users' %}" class="{% if 'admin_user' in request.resolver_match.url_name %}active{% endif %}">
+                <i class="fas fa-users"></i> Foydalanuvchilar
+            </a>
+            <a href="{% url 'admin_statistics' %}" class="{% if request.resolver_match.url_name == 'admin_statistics' %}active{% endif %}">
+                <i class="fas fa-chart-bar"></i> Statistika
+            </a>
+            <a href="{% url 'profile' %}" class="{% if request.resolver_match.url_name == 'profile' %}active{% endif %}">
+                <i class="fas fa-user-cog"></i> Profil
+            </a>
+            {% else %}
+            <a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                <i class="fas fa-home"></i> Bosh sahifa
+            </a>
+            <a href="{% url 'all_questions' %}" class="{% if request.resolver_match.url_name == 'all_questions' %}active{% endif %}">
+                <i class="fas fa-list"></i> Savollar
+            </a>
+            <a href="{% url 'search_questions' %}" class="{% if request.resolver_match.url_name == 'search_questions' %}active{% endif %}">
+                <i class="fas fa-search"></i> Qidirish
+            </a>
+            <a href="{% url 'start_test' %}" class="{% if request.resolver_match.url_name == 'start_test' %}active{% endif %}">
+                <i class="fas fa-play"></i> Test
+            </a>
+            <a href="{% url 'bookmarks' %}" class="{% if request.resolver_match.url_name == 'bookmarks' %}active{% endif %}">
+                <i class="fas fa-bookmark"></i> Saqlangan
+            </a>
+            <a href="{% url 'statistics' %}" class="{% if request.resolver_match.url_name == 'statistics' %}active{% endif %}">
+                <i class="fas fa-chart-bar"></i> Statistika
+            </a>
+            <a href="{% url 'profile' %}" class="{% if request.resolver_match.url_name == 'profile' %}active{% endif %}">
+                <i class="fas fa-user"></i> Profil
+            </a>
+            {% endif %}
+            <a href="{% url 'logout' %}" class="nav-logout">
+                <i class="fas fa-sign-out-alt"></i> Chiqish
+            </a>
+        </div>
+    </nav>
+    {% endif %}
+
+    <main class="{% if user.is_authenticated %}main-content{% else %}main-full{% endif %}">
+        {% block content %}{% endblock %}
+    </main>
+
+    <div class="image-modal" id="imageModal" onclick="closeImageModal()">
+        <span class="modal-close">&times;</span>
+        <img id="modalImage" src="" alt="">
+    </div>
+
+    <script src="{% static 'js/main.js' %}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

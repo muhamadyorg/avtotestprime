@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block title %}Statistika - AvtotestPrime{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-chart-bar"></i> Foydalanuvchilar statistikasi</h1>
+</div>
+
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Foydalanuvchi</th>
+                <th>Testlar soni</th>
+                <th>O'rtacha ball</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in user_stats %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ item.user.username }}</td>
+                <td>{{ item.total_tests }}</td>
+                <td>
+                    <span class="score-badge {% if item.avg_score >= 80 %}score-good{% elif item.avg_score >= 50 %}score-ok{% else %}score-bad{% endif %}">
+                        {{ item.avg_score }}%
+                    </span>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" class="text-center">Ma'lumot topilmadi</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

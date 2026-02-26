@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% block title %}Test natijasi - AvtotestPrime{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-poll"></i> Test natijasi</h1>
+</div>
+
+<div class="result-summary">
+    <div class="result-score {% if session.score_percent >= 80 %}score-good{% elif session.score_percent >= 50 %}score-ok{% else %}score-bad{% endif %}">
+        {{ session.score_percent }}%
+    </div>
+    <div class="result-details">
+        <div class="result-item result-correct">
+            <i class="fas fa-check-circle"></i>
+            <span>To'g'ri: {{ session.correct_answers }}</span>
+        </div>
+        <div class="result-item result-wrong">
+            <i class="fas fa-times-circle"></i>
+            <span>Noto'g'ri: {{ session.wrong_answers }}</span>
+        </div>
+        <div class="result-item">
+            <i class="fas fa-clock"></i>
+            <span>Vaqt: {{ session.time_spent|floatformat:0 }} soniya</span>
+        </div>
+        <div class="result-item">
+            <i class="fas fa-list"></i>
+            <span>Jami: {{ session.total_questions }} savol</span>
+        </div>
+    </div>
+</div>
+
+<h2 class="section-title">Batafsil natijalar</h2>
+
+<div class="result-answers">
+    {% for answer in answers %}
+    <div class="result-answer-card {% if answer.is_correct %}answer-correct{% else %}answer-wrong{% endif %}">
+        <div class="result-answer-header">
+            <span class="result-answer-num">#{{ forloop.counter }}</span>
+            {% if answer.is_correct %}
+            <span class="result-badge badge-correct"><i class="fas fa-check"></i> To'g'ri</span>
+            {% else %}
+            <span class="result-badge badge-wrong"><i class="fas fa-times"></i> Noto'g'ri</span>
+            {% endif %}
+        </div>
+        <p class="result-answer-text">{{ answer.question.text }}</p>
+        {% if answer.question.image %}
+        <div class="result-answer-image" onclick="openImageModal('{{ answer.question.image.url }}')">
+            <img src="{{ answer.question.image.url }}" alt="Savol rasmi">
+        </div>
+        {% endif %}
+        <div class="result-variants">
+            {% for v in answer.question.variants %}
+            <div class="variant {% if answer.question.correct_answer == v.letter %}variant-correct{% endif %} {% if answer.selected_answer == v.letter and not answer.is_correct %}variant-wrong{% endif %}">
+                <span class="variant-letter">{{ v.letter }}</span> {{ v.text }}
+                {% if answer.selected_answer == v.letter %}<i class="fas fa-hand-pointer"></i>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="result-actions">
+    <a href="{% url 'start_test' %}" class="btn btn-primary">
+        <i class="fas fa-redo"></i> Qayta test
+    </a>
+    <a href="{% url 'dashboard' %}" class="btn btn-outline">
+        <i class="fas fa-home"></i> Bosh sahifa
+    </a>
+</div>
+{% endblock %}

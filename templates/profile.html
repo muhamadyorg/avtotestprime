@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block title %}Profil - AvtotestPrime{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-user"></i> Profil</h1>
+</div>
+
+<div class="profile-card">
+    <div class="profile-info">
+        <div class="profile-avatar">
+            <i class="fas fa-user-circle"></i>
+        </div>
+        <h2>{{ user.username }}</h2>
+        <p>Ro'yxatdan o'tgan: {{ user.date_joined|date:"d.m.Y" }}</p>
+        {% if user.is_staff %}
+        <span class="admin-badge"><i class="fas fa-shield-alt"></i> Admin</span>
+        {% endif %}
+    </div>
+
+    {% if success %}
+    <div class="alert alert-success">
+        <i class="fas fa-check-circle"></i> {{ success }}
+    </div>
+    {% endif %}
+    {% if error %}
+    <div class="alert alert-danger">
+        <i class="fas fa-exclamation-circle"></i> {{ error }}
+    </div>
+    {% endif %}
+
+    <form method="post" action="{% url 'profile' %}">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="new_username"><i class="fas fa-user"></i> Login</label>
+            <input type="text" id="new_username" name="new_username" value="{{ user.username }}" placeholder="Yangi loginni kiriting">
+        </div>
+        <div class="form-group">
+            <label for="new_password"><i class="fas fa-key"></i> Yangi parol (bo'sh qoldirsa o'zgarmaydi)</label>
+            <input type="password" id="new_password" name="new_password" placeholder="Yangi parolni kiriting">
+        </div>
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save"></i> Saqlash
+        </button>
+    </form>
+</div>
+{% endblock %}

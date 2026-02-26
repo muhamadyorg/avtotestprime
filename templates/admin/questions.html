@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% block title %}Savollarni boshqarish - AvtotestPrime{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-list"></i> Savollar ({{ questions|length }})</h1>
+    <a href="{% url 'admin_add_question' %}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Savol qo'shish
+    </a>
+</div>
+
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Savol</th>
+                <th>Rasm</th>
+                <th>To'g'ri javob</th>
+                <th>Harakatlar</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for q in questions %}
+            <tr>
+                <td>{{ q.number }}</td>
+                <td class="text-truncate">{{ q.text|truncatewords:10 }}</td>
+                <td>
+                    {% if q.image %}
+                    <img src="{{ q.image.url }}" alt="" class="table-thumb" onclick="openImageModal('{{ q.image.url }}')">
+                    {% else %}
+                    <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+                <td><span class="answer-badge">{{ q.correct_answer }}</span></td>
+                <td>
+                    <div class="action-btns">
+                        <a href="{% url 'admin_edit_question' q.id %}" class="btn btn-sm btn-outline">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <form method="post" action="{% url 'admin_delete_question' q.id %}" style="display:inline;" onsubmit="return confirm('Savolni o\'chirasizmi?')">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-danger">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" class="text-center">Savollar topilmadi</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

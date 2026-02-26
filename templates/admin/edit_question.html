@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+{% block title %}Savolni tahrirlash - AvtotestPrime{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-edit"></i> Savolni tahrirlash #{{ question.number }}</h1>
+    <a href="{% url 'admin_questions' %}" class="btn btn-outline">
+        <i class="fas fa-arrow-left"></i> Orqaga
+    </a>
+</div>
+
+<div class="form-card">
+    <form method="post" action="{% url 'admin_edit_question' question.id %}" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="text">Savol matni:</label>
+            <textarea id="text" name="text" rows="3" required>{{ question.text }}</textarea>
+        </div>
+        <div class="form-group">
+            <label for="image">Rasm:</label>
+            {% if question.image %}
+            <div class="current-image">
+                <img src="{{ question.image.url }}" alt="Hozirgi rasm" onclick="openImageModal('{{ question.image.url }}')">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="remove_image"> Rasmni o'chirish
+                </label>
+            </div>
+            {% endif %}
+            <input type="file" id="image" name="image" accept="image/*">
+        </div>
+
+        <div class="variants-dynamic" id="variantsContainer">
+            <div class="variants-header">
+                <label class="form-label-main">Variantlar (2-10):</label>
+                <button type="button" class="btn btn-sm btn-add-variant" onclick="addVariant()" id="btnAdd" title="Variant qo'shish">
+                    <i class="fas fa-plus"></i> Qo'shish
+                </button>
+            </div>
+            <div id="variantsList">
+                {% for v in question.variants %}
+                <div class="variant-row" data-index="{{ forloop.counter0 }}">
+                    <span class="variant-row-letter">{{ v.letter }}</span>
+                    <input type="text" name="variant_{{ v.letter|lower }}" value="{{ v.text }}" required>
+                    <button type="button" class="btn btn-sm btn-remove-variant variant-remove-btn" onclick="removeVariant(this)" title="Olib tashlash">
+                        <i class="fas fa-minus"></i>
+                    </button>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="correct_answer">To'g'ri javob:</label>
+            <select id="correct_answer" name="correct_answer" required>
+                {% for v in question.variants %}
+                <option value="{{ v.letter }}" {% if question.correct_answer == v.letter %}selected{% endif %}>{{ v.letter }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary btn-full">
+            <i class="fas fa-save"></i> Saqlash
+        </button>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const LETTERS = 'ABCDEFGHIJ';
+    const MAX_VARIANTS = 10;
+    const MIN_VARIANTS = 2;
+
+    function getVariantCount() {
+        return document.querySelectorAll('#variantsList .variant-row').length;
+    }
+
+    function addVariant() {
+        const count = getVariantCount();
+        if (count >= MAX_VARIANTS) return;
+        const letter = LETTERS[count];
+        const list = document.getElementById('variantsList');
+        const row = document.createElement('div');
+        row.className = 'variant-row';
+        row.dataset.index = count;
+        row.innerHTML = '<span class="variant-row-letter">' + letter + '</span>' +
+            '<input type="text" name="variant_' + letter.toLowerCase() + '" placeholder="' + letter + ' variantni kiriting">' +
+            '<button type="button" class="btn btn-sm btn-remove-variant variant-remove-btn" onclick="removeVariant(this)" title="Olib tashlash"><i class="fas fa-minus"></i></button>';
+        list.appendChild(row);
+        updateCorrectOptions();
+        updateRemoveButtons();
+        if (getVariantCount() >= MAX_VARIANTS) {
+            document.getElementById('btnAdd').style.display = 'none';
+        }
+    }
+
+    function removeVariant(btn) {
+        const row = btn.closest('.variant-row');
+        row.remove();
+        reindexVariants();
+        updateCorrectOptions();
+        updateRemoveButtons();
+        document.getElementById('btnAdd').style.display = '';
+    }
+
+    function reindexVariants() {
+        const rows = document.querySelectorAll('#variantsList .variant-row');
+        rows.forEach((row, i) => {
+            const letter = LETTERS[i];
+            row.dataset.index = i;
+            row.querySelector('.variant-row-letter').textContent = letter;
+            const input = row.querySelector('input[type="text"]');
+            input.name = 'variant_' + letter.toLowerCase();
+        });
+    }
+
+    function updateCorrectOptions() {
+        const sel = document.getElementById('correct_answer');
+        const currentVal = sel.value;
+        const count = getVariantCount();
+        sel.innerHTML = '';
+        for (let i = 0; i < count; i++) {
+            const opt = document.createElement('option');
+            opt.value = LETTERS[i];
+            opt.textContent = LETTERS[i];
+            sel.appendChild(opt);
+        }
+        if (currentVal && sel.querySelector('option[value="' + currentVal + '"]')) {
+            sel.value = currentVal;
+        }
+    }
+
+    function updateRemoveButtons() {
+        const rows = document.querySelectorAll('#variantsList .variant-row');
+        const canRemove = rows.length > MIN_VARIANTS;
+        rows.forEach(row => {
+            const btn = row.querySelector('.variant-remove-btn');
+            if (btn) btn.style.display = canRemove ? '' : 'none';
+        });
+    }
+
+    updateRemoveButtons();
+    if (getVariantCount() >= MAX_VARIANTS) {
+        document.getElementById('btnAdd').style.display = 'none';
+    }
+</script>
+{% endblock %}

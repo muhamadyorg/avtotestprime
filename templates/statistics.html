@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% block title %}Statistika - AvtotestPrime{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-chart-bar"></i> Statistika</h1>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon"><i class="fas fa-file-alt"></i></div>
+        <div class="stat-number">{{ total_tests }}</div>
+        <div class="stat-label">Jami testlar</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon"><i class="fas fa-percentage"></i></div>
+        <div class="stat-number">{{ avg_score }}%</div>
+        <div class="stat-label">O'rtacha ball</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon"><i class="fas fa-trophy"></i></div>
+        <div class="stat-number">{{ best_score }}%</div>
+        <div class="stat-label">Eng yaxshi ball</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon"><i class="fas fa-check"></i></div>
+        <div class="stat-number">{{ total_correct }}</div>
+        <div class="stat-label">To'g'ri javoblar</div>
+    </div>
+</div>
+
+<h2 class="section-title">Oxirgi testlar</h2>
+
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Sana</th>
+                <th>Savollar</th>
+                <th>To'g'ri</th>
+                <th>Noto'g'ri</th>
+                <th>Ball</th>
+                <th>Vaqt</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in recent_sessions %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ s.created_at|date:"d.m.Y H:i" }}</td>
+                <td>{{ s.total_questions }}</td>
+                <td class="text-success">{{ s.correct_answers }}</td>
+                <td class="text-danger">{{ s.wrong_answers }}</td>
+                <td>
+                    <span class="score-badge {% if s.score_percent >= 80 %}score-good{% elif s.score_percent >= 50 %}score-ok{% else %}score-bad{% endif %}">
+                        {{ s.score_percent }}%
+                    </span>
+                </td>
+                <td>{{ s.time_spent }}s</td>
+                <td><a href="{% url 'test_result' s.id %}" class="btn btn-sm btn-outline">Ko'rish</a></td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8" class="text-center">Testlar topilmadi</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

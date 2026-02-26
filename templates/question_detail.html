@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block title %}Savol #{{ question.number }} - AvtotestPrime{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Savol #{{ question.number }}</h1>
+    <a href="{% url 'all_questions' %}" class="btn btn-outline">
+        <i class="fas fa-arrow-left"></i> Orqaga
+    </a>
+</div>
+
+<div class="question-detail">
+    {% if question.image %}
+    <div class="question-detail-image" onclick="openImageModal('{{ question.image.url }}')">
+        <img src="{{ question.image.url }}" alt="Savol rasmi">
+        <div class="image-hint"><i class="fas fa-expand"></i> Kattalashtirish</div>
+    </div>
+    {% endif %}
+    <div class="question-detail-content">
+        <p class="question-text-large">{{ question.text }}</p>
+        <div class="variants-list">
+            {% for v in question.variants %}
+            <div class="variant-detail {% if question.correct_answer == v.letter %}variant-correct{% endif %}">
+                <span class="variant-letter">{{ v.letter }}</span> {{ v.text }}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="question-actions">
+        <a href="{% url 'toggle_bookmark' question.id %}" class="btn {% if is_bookmarked %}btn-warning{% else %}btn-outline{% endif %}">
+            <i class="fas fa-bookmark"></i>
+            {% if is_bookmarked %}Saqlangan{% else %}Saqlash{% endif %}
+        </a>
+    </div>
+</div>
+{% endblock %}

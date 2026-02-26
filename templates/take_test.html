@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+{% block title %}Test - AvtotestPrime{% endblock %}
+
+{% block content %}
+<div class="test-header">
+    <div class="test-timer" id="testTimer">
+        <i class="fas fa-clock"></i> <span id="timerDisplay">00:00</span>
+    </div>
+    <div class="test-progress">
+        <span class="test-progress-text">
+            Savol <span id="currentNum">1</span> / {{ questions|length }}
+        </span>
+        <span class="test-score-live">
+            <span class="score-correct-live"><i class="fas fa-check"></i> <span id="liveCorrect">0</span></span>
+            <span class="score-wrong-live"><i class="fas fa-times"></i> <span id="liveWrong">0</span></span>
+        </span>
+    </div>
+</div>
+
+<div class="test-progress-bar">
+    <div class="test-progress-fill" id="progressFill" style="width: 0%"></div>
+</div>
+
+<form method="post" action="{% url 'submit_test' session.id %}" id="testForm">
+    {% csrf_token %}
+    <input type="hidden" name="time_spent" id="timeSpent" value="0">
+
+    <div class="test-question-container" id="testContainer">
+        {% for q in questions %}
+        <div class="test-question-slide {% if forloop.first %}slide-active{% endif %}" data-index="{{ forloop.counter0 }}" data-question-id="{{ q.id }}" data-correct="{{ q.correct_answer }}">
+            <div class="test-question-card-single">
+                <div class="test-question-header">
+                    <span class="test-question-num">Savol {{ forloop.counter }}</span>
+                </div>
+
+                {% if q.image %}
+                <div class="test-question-image-top" onclick="openImageModal('{{ q.image.url }}')">
+                    <img src="{{ q.image.url }}" alt="Savol rasmi">
+                    <div class="image-hint"><i class="fas fa-expand"></i> Kattalashtirish</div>
+                </div>
+                {% endif %}
+
+                <div class="test-question-content-below">
+                    <p class="test-question-text-large">{{ q.text }}</p>
+                    <div class="test-variants-single">
+                        {% for v in q.variants %}
+                        <div class="test-variant-single" data-answer="{{ v.letter }}" onclick="selectAnswer(this)">
+                            <span class="variant-indicator">{{ v.letter }}</span>
+                            <span class="variant-text-content">{{ v.text }}</span>
+                            <span class="variant-result-icon"></span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <input type="hidden" name="answer_{{ q.id }}" value="">
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="test-nav-buttons">
+        <button type="button" class="btn btn-outline" id="btnPrev" onclick="prevQuestion()" disabled>
+            <i class="fas fa-arrow-left"></i> Oldingi
+        </button>
+        <button type="button" class="btn btn-primary" id="btnNext" onclick="nextQuestion()">
+            Keyingi <i class="fas fa-arrow-right"></i>
+        </button>
+        <button type="submit" class="btn btn-success" id="btnFinish" style="display:none;">
+            <i class="fas fa-flag-checkered"></i> Yakunlash
+        </button>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const totalQuestions = {{ questions|length }};
+    const timeLimit = {{ time_limit }};
+    let currentIndex = 0;
+    let elapsed = 0;
+    let correctCount = 0;
+    let wrongCount = 0;
+    const answeredSlides = new Set();
+
+    const timerDisplay = document.getElementById('timerDisplay');
+    const timeSpentInput = document.getElementById('timeSpent');
+
+    function formatTime(seconds) {
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    }
+
+    timerDisplay.textContent = formatTime(timeLimit);
+
+    const timer = setInterval(() => {
+        elapsed++;
+        timeSpentInput.value = elapsed;
+        const remaining = timeLimit - elapsed;
+        if (remaining <= 0) {
+            clearInterval(timer);
+            document.getElementById('testForm').submit();
+            return;
+        }
+        timerDisplay.textContent = formatTime(remaining);
+        if (remaining <= 60) {
+            document.getElementById('testTimer').classList.add('timer-danger');
+        }
+    }, 1000);
+
+    function selectAnswer(el) {
+        const slide = el.closest('.test-question-slide');
+        if (answeredSlides.has(slide.dataset.index)) return;
+        answeredSlides.add(slide.dataset.index);
+
+        const selectedAnswer = el.dataset.answer;
+        const correctAnswer = slide.dataset.correct;
+        const qId = slide.dataset.questionId;
+        const isCorrect = selectedAnswer === correctAnswer;
+
+        slide.querySelector('input[name="answer_' + qId + '"]').value = selectedAnswer;
+
+        const allVariants = slide.querySelectorAll('.test-variant-single');
+        allVariants.forEach(v => {
+            v.style.pointerEvents = 'none';
+            if (v.dataset.answer === correctAnswer) {
+                v.classList.add('variant-answer-correct');
+                v.querySelector('.variant-result-icon').innerHTML = '<i class="fas fa-check-circle"></i>';
+            }
+            if (v.dataset.answer === selectedAnswer && !isCorrect) {
+                v.classList.add('variant-answer-wrong');
+                v.querySelector('.variant-result-icon').innerHTML = '<i class="fas fa-times-circle"></i>';
+            }
+        });
+
+        if (isCorrect) {
+            correctCount++;
+        } else {
+            wrongCount++;
+        }
+        document.getElementById('liveCorrect').textContent = correctCount;
+        document.getElementById('liveWrong').textContent = wrongCount;
+
+        updateProgress();
+
+        setTimeout(() => {
+            if (currentIndex < totalQuestions - 1) {
+                nextQuestion();
+            } else {
+                updateNavButtons();
+            }
+        }, 1200);
+    }
+
+    function showSlide(index) {
+        const slides = document.querySelectorAll('.test-question-slide');
+        slides.forEach(s => s.classList.remove('slide-active'));
+        slides[index].classList.add('slide-active');
+        document.getElementById('currentNum').textContent = index + 1;
+        updateNavButtons();
+        updateProgress();
+    }
+
+    function nextQuestion() {
+        if (currentIndex < totalQuestions - 1) {
+            currentIndex++;
+            showSlide(currentIndex);
+        }
+    }
+
+    function prevQuestion() {
+        if (currentIndex > 0) {
+            currentIndex--;
+            showSlide(currentIndex);
+        }
+    }
+
+    function updateNavButtons() {
+        document.getElementById('btnPrev').disabled = currentIndex === 0;
+        const isLast = currentIndex === totalQuestions - 1;
+        document.getElementById('btnNext').style.display = isLast ? 'none' : '';
+        document.getElementById('btnFinish').style.display = isLast ? '' : 'none';
+    }
+
+    function updateProgress() {
+        const pct = ((answeredSlides.size) / totalQuestions) * 100;
+        document.getElementById('progressFill').style.width = pct + '%';
+    }
+</script>
+{% endblock %}

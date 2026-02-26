@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block title %}Bosh sahifa - AvtotestPrime{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Xush kelibsiz, {{ user.username }}!</h1>
+    <p>AvtotestPrime - Avtotest savollarini o'rganing</p>
+</div>
+
+<div class="stats-grid">
+    <a href="{% url 'all_questions' %}" class="stat-card">
+        <div class="stat-icon"><i class="fas fa-list"></i></div>
+        <div class="stat-number">{{ total_questions }}</div>
+        <div class="stat-label">Jami savollar</div>
+    </a>
+    <a href="{% url 'bookmarks' %}" class="stat-card">
+        <div class="stat-icon"><i class="fas fa-bookmark"></i></div>
+        <div class="stat-number">{{ bookmark_count }}</div>
+        <div class="stat-label">Saqlangan</div>
+    </a>
+    <a href="{% url 'statistics' %}" class="stat-card">
+        <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+        <div class="stat-number">{{ test_count }}</div>
+        <div class="stat-label">Testlar</div>
+    </a>
+    <a href="{% url 'statistics' %}" class="stat-card">
+        <div class="stat-icon"><i class="fas fa-percentage"></i></div>
+        <div class="stat-number">{{ avg_score }}%</div>
+        <div class="stat-label">O'rtacha ball</div>
+    </a>
+</div>
+
+<div class="quick-actions">
+    <h2>Tezkor harakatlar</h2>
+    <div class="action-grid">
+        <a href="{% url 'all_questions' %}" class="action-card">
+            <i class="fas fa-book-open"></i>
+            <span>Barcha savollar</span>
+        </a>
+        <a href="{% url 'start_test' %}" class="action-card">
+            <i class="fas fa-play-circle"></i>
+            <span>Test boshlash</span>
+        </a>
+        <a href="{% url 'search_questions' %}" class="action-card">
+            <i class="fas fa-search"></i>
+            <span>Savol qidirish</span>
+        </a>
+        <a href="{% url 'bookmarks' %}" class="action-card">
+            <i class="fas fa-star"></i>
+            <span>Saqlangan savollar</span>
+        </a>
+    </div>
+</div>
+{% endblock %}

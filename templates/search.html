@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% block title %}Qidirish - AvtotestPrime{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-search"></i> Savol qidirish</h1>
+</div>
+
+<div class="search-box">
+    <form method="get" action="{% url 'search_questions' %}">
+        <div class="search-input-group">
+            <input type="text" name="q" value="{{ query }}" placeholder="Savol matni yoki raqamini kiriting..." autofocus>
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-search"></i> Qidirish
+            </button>
+        </div>
+    </form>
+</div>
+
+{% if query %}
+<p class="search-result-count">{{ questions|length }} ta natija topildi</p>
+{% endif %}
+
+<div class="questions-list">
+    {% for q in questions %}
+    <div class="question-card">
+        <div class="question-card-content">
+            <div class="question-info">
+                <div class="question-number">#{{ q.number }}</div>
+                <div class="question-text">{{ q.text }}</div>
+            </div>
+            {% if q.image %}
+            <div class="question-thumb" onclick="openImageModal('{{ q.image.url }}')">
+                <img src="{{ q.image.url }}" alt="Savol rasmi">
+            </div>
+            {% endif %}
+        </div>
+        <div class="question-variants">
+            {% for v in q.variants %}
+            <div class="variant {% if q.correct_answer == v.letter %}variant-correct{% endif %}">
+                <span class="variant-letter">{{ v.letter }}</span> {{ v.text }}
+            </div>
+            {% endfor %}
+        </div>
+        <div class="question-actions">
+            <a href="{% url 'toggle_bookmark' q.id %}" class="btn btn-sm {% if q.id in user_bookmarks %}btn-warning{% else %}btn-outline{% endif %}" onclick="event.preventDefault(); toggleBookmark(this, {{ q.id }});">
+                <i class="fas fa-bookmark"></i>
+            </a>
+        </div>
+    </div>
+    {% empty %}
+    <div class="empty-state">
+        <i class="fas fa-search"></i>
+        <p>{% if query %}Hech narsa topilmadi{% else %}Qidirish uchun so'z kiriting{% endif %}</p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
