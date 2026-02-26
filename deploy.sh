@@ -238,14 +238,20 @@ else
         cp "$NGINX_CONF" "${NGINX_CONF}.bak.$(date +%s)"
     fi
 
+    LOG_DIR="/www/wwwlogs"
+    if [ ! -d "$LOG_DIR" ]; then
+        LOG_DIR="/var/log/nginx"
+        mkdir -p "$LOG_DIR"
+    fi
+
     cat > "$NGINX_CONF" <<NGINXEOF
 server {
     listen 80;
     server_name ${DOMAIN} www.${DOMAIN};
 
     client_max_body_size 20M;
-    access_log /var/log/nginx/${DOMAIN}.log;
-    error_log /var/log/nginx/${DOMAIN}.error.log;
+    access_log ${LOG_DIR}/${DOMAIN}.log;
+    error_log ${LOG_DIR}/${DOMAIN}.error.log;
 
     location /static/ {
         alias ${PROJECT_DIR}/staticfiles/;
@@ -281,15 +287,15 @@ NGINXEOF
     fi
 
     if [ -n "$NGINX_BIN" ]; then
-        $NGINX_BIN -t && $NGINX_BIN -s reload
-        echo -e "${GREEN}Nginx tayyor va qayta yuklandi!${NC}"
+        if $NGINX_BIN -t 2>&1; then
+            $NGINX_BIN -s reload
+            echo -e "${GREEN}Nginx tayyor va qayta yuklandi!${NC}"
+        else
+            echo -e "${RED}Nginx config xato! Loglarni tekshiring${NC}"
+        fi
     else
         echo -e "${YELLOW}Nginx topilmadi. Qo'lda qayta yuklang: nginx -s reload${NC}"
     fi
-fi
-
-if [ -d "/www/wwwlogs" ]; then
-    sed -i "s|/var/log/nginx/|/www/wwwlogs/|g" "$NGINX_CONF" 2>/dev/null
 fi
 
 echo -e "${YELLOW}[8/8] Yakuniy tekshirish...${NC}"
