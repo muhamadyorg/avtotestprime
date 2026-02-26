@@ -19,7 +19,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-dev-key-change-me')
 
 DEBUG = os.environ.get('DEBUG', 'True').lower() in ('true', '1', 'yes')
 
-_default_hosts = '*' if os.environ.get('DEBUG', 'True').lower() in ('true', '1', 'yes') else 'avtotestprime.uz,www.avtotestprime.uz,localhost,127.0.0.1'
+_default_hosts = '*' if os.environ.get('DEBUG', 'True').lower() in ('true', '1', 'yes') else 'avtotestprime.uz,www.avtotestprime.uz,bt.muhamadyorg.uz,www.bt.muhamadyorg.uz,localhost,127.0.0.1'
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', _default_hosts).split(',')
 if '*' in ALLOWED_HOSTS:
     ALLOWED_HOSTS = ['*']
@@ -27,6 +27,9 @@ if '*' in ALLOWED_HOSTS:
 CSRF_TRUSTED_ORIGINS = [
     'https://avtotestprime.uz',
     'https://www.avtotestprime.uz',
+    'https://bt.muhamadyorg.uz',
+    'https://www.bt.muhamadyorg.uz',
+    'http://bt.muhamadyorg.uz',
     'https://*.replit.dev',
     'https://*.repl.co',
     'https://*.replit.app',
