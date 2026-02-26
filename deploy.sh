@@ -5,8 +5,8 @@ DOMAIN="avtotestprime.uz"
 PROJECT_DIR="/www/wwwroot/avtotestprime.uz"
 DB_NAME="avtotestprime"
 DB_USER="avtotestprime"
-DB_PASS=$(openssl rand -base64 32 | tr -d '/+=')
-SECRET_KEY=$(openssl rand -base64 50 | tr -d '/+=')
+DB_PASS=$(openssl rand -hex 24)
+SECRET_KEY=$(openssl rand -hex 32)
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -54,16 +54,12 @@ echo -e "${YELLOW}[3/8] Python virtual muhitini sozlash...${NC}"
 cd "$PROJECT_DIR"
 
 if [ ! -f "manage.py" ]; then
-    echo -e "${RED}Xatolik: manage.py topilmadi!${NC}"
-    echo -e "${RED}Fayllar to'g'ri joylashganini tekshiring.${NC}"
-    echo -e "Hozirgi papka: $(pwd)"
-    echo -e "Fayllar: $(ls)"
+    echo -e "${RED}Xatolik: manage.py topilmadi! Fayllarni tekshiring.${NC}"
     exit 1
 fi
 
-if [ ! -d "avtotestprime" ] || [ ! -f "avtotestprime/settings.py" ]; then
+if [ ! -f "avtotestprime/settings.py" ]; then
     echo -e "${RED}Xatolik: avtotestprime/settings.py topilmadi!${NC}"
-    echo -e "${RED}Django settings moduli yo'q.${NC}"
     exit 1
 fi
 
@@ -76,22 +72,25 @@ pip install -r requirements.txt
 echo -e "${GREEN}Python paketlari o'rnatildi!${NC}"
 
 echo -e "${YELLOW}[4/8] .env faylini yaratish...${NC}"
-cat > "${PROJECT_DIR}/.env" <<EOF
-SECRET_KEY=${SECRET_KEY}
-DEBUG=False
-ALLOWED_HOSTS=${DOMAIN},www.${DOMAIN},localhost,127.0.0.1
-PGDATABASE=${DB_NAME}
-PGUSER=${DB_USER}
-PGPASSWORD=${DB_PASS}
-PGHOST=localhost
-PGPORT=5432
-EOF
+echo "SECRET_KEY=\"${SECRET_KEY}\"" > "${PROJECT_DIR}/.env"
+echo "DEBUG=\"False\"" >> "${PROJECT_DIR}/.env"
+echo "ALLOWED_HOSTS=\"${DOMAIN},www.${DOMAIN},localhost,127.0.0.1\"" >> "${PROJECT_DIR}/.env"
+echo "PGDATABASE=\"${DB_NAME}\"" >> "${PROJECT_DIR}/.env"
+echo "PGUSER=\"${DB_USER}\"" >> "${PROJECT_DIR}/.env"
+echo "PGPASSWORD=\"${DB_PASS}\"" >> "${PROJECT_DIR}/.env"
+echo "PGHOST=\"localhost\"" >> "${PROJECT_DIR}/.env"
+echo "PGPORT=\"5432\"" >> "${PROJECT_DIR}/.env"
 echo -e "${GREEN}.env fayli yaratildi!${NC}"
 
 echo -e "${YELLOW}[5/8] Django migratsiya va sozlash...${NC}"
-set -a
-source "${PROJECT_DIR}/.env"
-set +a
+export SECRET_KEY="${SECRET_KEY}"
+export DEBUG="False"
+export ALLOWED_HOSTS="${DOMAIN},www.${DOMAIN},localhost,127.0.0.1"
+export PGDATABASE="${DB_NAME}"
+export PGUSER="${DB_USER}"
+export PGPASSWORD="${DB_PASS}"
+export PGHOST="localhost"
+export PGPORT="5432"
 
 python manage.py migrate --noinput
 python manage.py collectstatic --noinput
@@ -109,7 +108,7 @@ mkdir -p media/questions
 echo -e "${GREEN}Migratsiya va static fayllar tayyor!${NC}"
 
 echo -e "${YELLOW}[6/8] Gunicorn systemd xizmatini sozlash...${NC}"
-cat > /etc/systemd/system/avtotestprime.service <<EOF
+cat > /etc/systemd/system/avtotestprime.service <<SERVICEEOF
 [Unit]
 Description=AvtotestPrime Gunicorn Daemon
 After=network.target postgresql.service
@@ -125,7 +124,7 @@ RestartSec=3
 
 [Install]
 WantedBy=multi-user.target
-EOF
+SERVICEEOF
 
 chown -R www:www "$PROJECT_DIR"
 
@@ -147,7 +146,6 @@ NGINX_CONF="/www/server/panel/vhost/nginx/${DOMAIN}.conf"
 
 if [ -f "$NGINX_CONF" ]; then
     cp "$NGINX_CONF" "${NGINX_CONF}.backup.$(date +%Y%m%d_%H%M%S)"
-    echo -e "${YELLOW}Mavjud nginx config zaxiralandi!${NC}"
 fi
 
 cat > "$NGINX_CONF" <<'NGINXEOF'
@@ -183,13 +181,17 @@ server {
 NGINXEOF
 
 /www/server/nginx/sbin/nginx -t && /www/server/nginx/sbin/nginx -s reload
-echo -e "${GREEN}Nginx konfiguratsiya tayyor va qayta yuklandi!${NC}"
+echo -e "${GREEN}Nginx tayyor!${NC}"
 
 echo -e "${YELLOW}[8/8] Yakuniy tekshirish...${NC}"
 sleep 1
-curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/ | grep -q "302\|200" && \
-    echo -e "${GREEN}Sayt ishlayapti!${NC}" || \
-    echo -e "${YELLOW}Sayt hali yuklanmoqda, biroz kuting...${NC}"
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/ 2>/dev/null || echo "000")
+if [ "$HTTP_CODE" = "302" ] || [ "$HTTP_CODE" = "200" ]; then
+    echo -e "${GREEN}Sayt ishlayapti! (HTTP ${HTTP_CODE})${NC}"
+else
+    echo -e "${YELLOW}Sayt hali yuklanmoqda yoki xatolik bor (HTTP ${HTTP_CODE})${NC}"
+    echo -e "Tekshirish: journalctl -u avtotestprime -f"
+fi
 
 echo ""
 echo -e "${GREEN}================================================${NC}"
@@ -203,14 +205,13 @@ echo -e "${YELLOW}SSL ni aaPanel dan o'rnating:${NC}"
 echo -e "  aaPanel > Website > ${DOMAIN} > SSL > Let's Encrypt"
 echo ""
 echo -e "Ma'lumotlar bazasi:"
-echo -e "  Baza nomi:      ${DB_NAME}"
-echo -e "  Foydalanuvchi:   ${DB_USER}"
-echo -e "  Parol:           ${DB_PASS}"
+echo -e "  Baza:   ${DB_NAME}"
+echo -e "  User:   ${DB_USER}"
+echo -e "  Parol:  ${DB_PASS}"
 echo ""
-echo -e "Foydali buyruqlar:"
-echo -e "  ${GREEN}systemctl restart avtotestprime${NC}  - Serverni qayta ishga tushirish"
-echo -e "  ${GREEN}systemctl status avtotestprime${NC}   - Server holatini ko'rish"
-echo -e "  ${GREEN}journalctl -u avtotestprime -f${NC}   - Loglarni ko'rish"
+echo -e "Buyruqlar:"
+echo -e "  ${GREEN}systemctl restart avtotestprime${NC}  - qayta ishga tushirish"
+echo -e "  ${GREEN}systemctl status avtotestprime${NC}   - holatni ko'rish"
+echo -e "  ${GREEN}journalctl -u avtotestprime -f${NC}   - loglarni ko'rish"
 echo ""
-echo -e ".env fayli: ${PROJECT_DIR}/.env"
 echo -e "${YELLOW}Bu ma'lumotlarni xavfsiz joyga saqlang!${NC}"
