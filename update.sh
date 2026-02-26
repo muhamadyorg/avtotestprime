@@ -13,7 +13,16 @@ pip install -r requirements.txt
 python manage.py migrate --noinput
 python manage.py collectstatic --noinput
 
-chown -R www:www "$PROJECT_DIR"
+WEB_USER="www"
+if ! id -u www > /dev/null 2>&1; then
+    if id -u www-data > /dev/null 2>&1; then
+        WEB_USER="www-data"
+    else
+        WEB_USER="root"
+    fi
+fi
+
+chown -R ${WEB_USER}:${WEB_USER} "$PROJECT_DIR" 2>/dev/null || true
 systemctl restart avtotestprime
 
 sleep 2
