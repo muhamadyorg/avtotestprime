@@ -5,8 +5,6 @@ DOMAIN="avtotestprime.uz"
 PROJECT_DIR="/www/wwwroot/avtotestprime.uz"
 DB_NAME="avtotestprime"
 DB_USER="avtotestprime"
-DB_PASS=$(openssl rand -hex 24)
-SECRET_KEY=$(openssl rand -hex 32)
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -15,8 +13,6 @@ NC='\033[0m'
 
 echo -e "${GREEN}================================================${NC}"
 echo -e "${GREEN}  AvtotestPrime - aaPanel VPS Deploy Script${NC}"
-echo -e "${GREEN}  Domen: ${DOMAIN}${NC}"
-echo -e "${GREEN}  Joylashuv: ${PROJECT_DIR}${NC}"
 echo -e "${GREEN}================================================${NC}"
 
 if [ "$EUID" -ne 0 ]; then
@@ -24,12 +20,27 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
+if [ -f "${PROJECT_DIR}/.env" ]; then
+    echo -e "${YELLOW}Mavjud .env topildi, parollar saqlanadi${NC}"
+    DB_PASS=$(grep PGPASSWORD "${PROJECT_DIR}/.env" | cut -d'"' -f2)
+    SECRET_KEY=$(grep SECRET_KEY "${PROJECT_DIR}/.env" | cut -d'"' -f2)
+fi
+
+if [ -z "$DB_PASS" ]; then
+    DB_PASS=$(openssl rand -hex 24)
+    echo -e "${YELLOW}Yangi DB parol yaratildi${NC}"
+fi
+
+if [ -z "$SECRET_KEY" ]; then
+    SECRET_KEY=$(openssl rand -hex 32)
+    echo -e "${YELLOW}Yangi SECRET_KEY yaratildi${NC}"
+fi
+
 echo -e "${YELLOW}[1/8] Kerakli paketlarni o'rnatish...${NC}"
 apt update -y
 apt install -y python3 python3-pip python3-venv python3-dev libpq-dev git curl
 
 if ! command -v psql &> /dev/null; then
-    echo -e "${YELLOW}PostgreSQL o'rnatilmoqda...${NC}"
     apt install -y postgresql postgresql-contrib
     systemctl enable postgresql
     systemctl start postgresql
@@ -39,27 +50,42 @@ echo -e "${GREEN}Paketlar tayyor!${NC}"
 echo -e "${YELLOW}[2/8] PostgreSQL bazasini sozlash...${NC}"
 systemctl start postgresql 2>/dev/null || true
 
-sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='${DB_USER}'" | grep -q 1 && \
-    sudo -u postgres psql -c "ALTER USER ${DB_USER} WITH PASSWORD '${DB_PASS}';" || \
-    sudo -u postgres psql -c "CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASS}';"
+USER_EXISTS=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='${DB_USER}'" 2>/dev/null || echo "0")
 
-sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='${DB_NAME}'" | grep -q 1 || \
+if [ "$USER_EXISTS" = "1" ]; then
+    echo -e "${YELLOW}User mavjud, parolni yangilash...${NC}"
+    sudo -u postgres psql -c "ALTER USER ${DB_USER} WITH PASSWORD '${DB_PASS}';"
+    echo -e "${GREEN}Parol yangilandi!${NC}"
+else
+    echo -e "${YELLOW}Yangi user yaratilmoqda...${NC}"
+    sudo -u postgres psql -c "CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASS}';"
+    echo -e "${GREEN}User yaratildi!${NC}"
+fi
+
+DB_EXISTS=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='${DB_NAME}'" 2>/dev/null || echo "0")
+
+if [ "$DB_EXISTS" != "1" ]; then
     sudo -u postgres psql -c "CREATE DATABASE ${DB_NAME} OWNER ${DB_USER};"
+    echo -e "${GREEN}Baza yaratildi!${NC}"
+else
+    echo -e "${GREEN}Baza allaqachon mavjud${NC}"
+fi
 
 sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE ${DB_NAME} TO ${DB_USER};"
 sudo -u postgres psql -d "${DB_NAME}" -c "GRANT ALL ON SCHEMA public TO ${DB_USER};" 2>/dev/null || true
+
+echo -e "${YELLOW}Baza ulanishini tekshirish...${NC}"
+PGPASSWORD="${DB_PASS}" psql -h 127.0.0.1 -U "${DB_USER}" -d "${DB_NAME}" -c "SELECT 1;" > /dev/null 2>&1 && \
+    echo -e "${GREEN}Baza ulanishi muvaffaqiyatli!${NC}" || \
+    { echo -e "${RED}Baza ulanishi xato! Parol to'g'ri kelmadi.${NC}"; echo -e "${YELLOW}pg_hba.conf ni tekshiring: md5 yoki scram-sha-256 bo'lishi kerak${NC}"; exit 1; }
+
 echo -e "${GREEN}Baza tayyor!${NC}"
 
 echo -e "${YELLOW}[3/8] Python virtual muhitini sozlash...${NC}"
 cd "$PROJECT_DIR"
 
 if [ ! -f "manage.py" ]; then
-    echo -e "${RED}Xatolik: manage.py topilmadi! Fayllarni tekshiring.${NC}"
-    exit 1
-fi
-
-if [ ! -f "avtotestprime/settings.py" ]; then
-    echo -e "${RED}Xatolik: avtotestprime/settings.py topilmadi!${NC}"
+    echo -e "${RED}Xatolik: manage.py topilmadi!${NC}"
     exit 1
 fi
 
@@ -99,13 +125,13 @@ python manage.py shell -c "
 from django.contrib.auth.models import User
 if not User.objects.filter(username='admin').exists():
     User.objects.create_superuser('admin', '', 'admin')
-    print('Admin foydalanuvchi yaratildi: admin/admin')
+    print('Admin yaratildi: admin/admin')
 else:
-    print('Admin foydalanuvchi allaqachon mavjud')
+    print('Admin allaqachon mavjud')
 "
 
 mkdir -p media/questions
-echo -e "${GREEN}Migratsiya va static fayllar tayyor!${NC}"
+echo -e "${GREEN}Migratsiya tayyor!${NC}"
 
 echo -e "${YELLOW}[6/8] Gunicorn systemd xizmatini sozlash...${NC}"
 cat > /etc/systemd/system/avtotestprime.service <<SERVICEEOF
@@ -136,16 +162,16 @@ sleep 2
 if systemctl is-active --quiet avtotestprime; then
     echo -e "${GREEN}Gunicorn muvaffaqiyatli ishga tushdi!${NC}"
 else
-    echo -e "${RED}Gunicorn xatolik. Loglar:${NC}"
+    echo -e "${RED}Gunicorn xatolik:${NC}"
     journalctl -u avtotestprime --no-pager -n 20
 fi
 
-echo -e "${YELLOW}[7/8] aaPanel Nginx konfiguratsiyasini yaratish...${NC}"
+echo -e "${YELLOW}[7/8] Nginx konfiguratsiya...${NC}"
 
 NGINX_CONF="/www/server/panel/vhost/nginx/${DOMAIN}.conf"
 
 if [ -f "$NGINX_CONF" ]; then
-    cp "$NGINX_CONF" "${NGINX_CONF}.backup.$(date +%Y%m%d_%H%M%S)"
+    cp "$NGINX_CONF" "${NGINX_CONF}.bak"
 fi
 
 cat > "$NGINX_CONF" <<'NGINXEOF'
@@ -160,7 +186,6 @@ server {
     location /static/ {
         alias /www/wwwroot/avtotestprime.uz/staticfiles/;
         expires 30d;
-        add_header Cache-Control "public, immutable";
     }
 
     location /media/ {
@@ -186,32 +211,15 @@ echo -e "${GREEN}Nginx tayyor!${NC}"
 echo -e "${YELLOW}[8/8] Yakuniy tekshirish...${NC}"
 sleep 1
 HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/ 2>/dev/null || echo "000")
-if [ "$HTTP_CODE" = "302" ] || [ "$HTTP_CODE" = "200" ]; then
-    echo -e "${GREEN}Sayt ishlayapti! (HTTP ${HTTP_CODE})${NC}"
-else
-    echo -e "${YELLOW}Sayt hali yuklanmoqda yoki xatolik bor (HTTP ${HTTP_CODE})${NC}"
-    echo -e "Tekshirish: journalctl -u avtotestprime -f"
-fi
+echo -e "HTTP javob: ${HTTP_CODE}"
 
 echo ""
 echo -e "${GREEN}================================================${NC}"
-echo -e "${GREEN}  Deploy muvaffaqiyatli yakunlandi!${NC}"
+echo -e "${GREEN}  Deploy yakunlandi!${NC}"
 echo -e "${GREEN}================================================${NC}"
 echo ""
-echo -e "Sayt:      ${GREEN}http://${DOMAIN}${NC}"
-echo -e "Admin:     ${GREEN}admin / admin${NC}"
+echo -e "Sayt:    http://${DOMAIN}"
+echo -e "Admin:   admin / admin"
 echo ""
-echo -e "${YELLOW}SSL ni aaPanel dan o'rnating:${NC}"
-echo -e "  aaPanel > Website > ${DOMAIN} > SSL > Let's Encrypt"
-echo ""
-echo -e "Ma'lumotlar bazasi:"
-echo -e "  Baza:   ${DB_NAME}"
-echo -e "  User:   ${DB_USER}"
-echo -e "  Parol:  ${DB_PASS}"
-echo ""
-echo -e "Buyruqlar:"
-echo -e "  ${GREEN}systemctl restart avtotestprime${NC}  - qayta ishga tushirish"
-echo -e "  ${GREEN}systemctl status avtotestprime${NC}   - holatni ko'rish"
-echo -e "  ${GREEN}journalctl -u avtotestprime -f${NC}   - loglarni ko'rish"
-echo ""
-echo -e "${YELLOW}Bu ma'lumotlarni xavfsiz joyga saqlang!${NC}"
+echo -e "DB Parol: ${DB_PASS}"
+echo -e "${YELLOW}Bu parolni xavfsiz joyga saqlang!${NC}"
