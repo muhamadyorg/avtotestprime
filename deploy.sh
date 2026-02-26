@@ -5,8 +5,8 @@ DOMAIN="avtotestprime.uz"
 PROJECT_DIR="/www/wwwroot/avtotestprime.uz"
 DB_NAME="avtotestprime"
 DB_USER="avtotestprime"
-DB_PASS=$(openssl rand -base64 32)
-SECRET_KEY=$(openssl rand -base64 50)
+DB_PASS=$(openssl rand -base64 32 | tr -d '/+=')
+SECRET_KEY=$(openssl rand -base64 50 | tr -d '/+=')
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -21,7 +21,6 @@ echo -e "${GREEN}================================================${NC}"
 
 if [ "$EUID" -ne 0 ]; then
     echo -e "${RED}Xatolik: Bu skriptni root sifatida ishga tushiring!${NC}"
-    echo "Foydalanish: bash deploy.sh"
     exit 1
 fi
 
@@ -35,18 +34,39 @@ if ! command -v psql &> /dev/null; then
     systemctl enable postgresql
     systemctl start postgresql
 fi
+echo -e "${GREEN}Paketlar tayyor!${NC}"
 
 echo -e "${YELLOW}[2/8] PostgreSQL bazasini sozlash...${NC}"
 systemctl start postgresql 2>/dev/null || true
-sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='${DB_USER}'" | grep -q 1 || \
+
+sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='${DB_USER}'" | grep -q 1 && \
+    sudo -u postgres psql -c "ALTER USER ${DB_USER} WITH PASSWORD '${DB_PASS}';" || \
     sudo -u postgres psql -c "CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASS}';"
+
 sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='${DB_NAME}'" | grep -q 1 || \
     sudo -u postgres psql -c "CREATE DATABASE ${DB_NAME} OWNER ${DB_USER};"
+
 sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE ${DB_NAME} TO ${DB_USER};"
+sudo -u postgres psql -d "${DB_NAME}" -c "GRANT ALL ON SCHEMA public TO ${DB_USER};" 2>/dev/null || true
 echo -e "${GREEN}Baza tayyor!${NC}"
 
 echo -e "${YELLOW}[3/8] Python virtual muhitini sozlash...${NC}"
 cd "$PROJECT_DIR"
+
+if [ ! -f "manage.py" ]; then
+    echo -e "${RED}Xatolik: manage.py topilmadi!${NC}"
+    echo -e "${RED}Fayllar to'g'ri joylashganini tekshiring.${NC}"
+    echo -e "Hozirgi papka: $(pwd)"
+    echo -e "Fayllar: $(ls)"
+    exit 1
+fi
+
+if [ ! -d "avtotestprime" ] || [ ! -f "avtotestprime/settings.py" ]; then
+    echo -e "${RED}Xatolik: avtotestprime/settings.py topilmadi!${NC}"
+    echo -e "${RED}Django settings moduli yo'q.${NC}"
+    exit 1
+fi
+
 if [ ! -d "venv" ]; then
     python3 -m venv venv
 fi
@@ -56,10 +76,6 @@ pip install -r requirements.txt
 echo -e "${GREEN}Python paketlari o'rnatildi!${NC}"
 
 echo -e "${YELLOW}[4/8] .env faylini yaratish...${NC}"
-if [ -f "${PROJECT_DIR}/.env" ]; then
-    echo -e "${YELLOW}Mavjud .env topildi, zaxira nusxasi yaratilmoqda...${NC}"
-    cp "${PROJECT_DIR}/.env" "${PROJECT_DIR}/.env.backup.$(date +%Y%m%d_%H%M%S)"
-fi
 cat > "${PROJECT_DIR}/.env" <<EOF
 SECRET_KEY=${SECRET_KEY}
 DEBUG=False
@@ -77,7 +93,7 @@ set -a
 source "${PROJECT_DIR}/.env"
 set +a
 
-python manage.py migrate
+python manage.py migrate --noinput
 python manage.py collectstatic --noinput
 
 python manage.py shell -c "
@@ -121,7 +137,7 @@ sleep 2
 if systemctl is-active --quiet avtotestprime; then
     echo -e "${GREEN}Gunicorn muvaffaqiyatli ishga tushdi!${NC}"
 else
-    echo -e "${RED}Gunicorn xatolik bilan ishga tushmadi. Logni tekshiring:${NC}"
+    echo -e "${RED}Gunicorn xatolik. Loglar:${NC}"
     journalctl -u avtotestprime --no-pager -n 20
 fi
 
@@ -169,11 +185,11 @@ NGINXEOF
 /www/server/nginx/sbin/nginx -t && /www/server/nginx/sbin/nginx -s reload
 echo -e "${GREEN}Nginx konfiguratsiya tayyor va qayta yuklandi!${NC}"
 
-echo -e "${YELLOW}[8/8] SSL sertifikatini tekshirish...${NC}"
-echo -e "${YELLOW}SSL ni aaPanel dan o'rnating:${NC}"
-echo -e "  1. aaPanel > Website > ${DOMAIN} > SSL"
-echo -e "  2. Let's Encrypt tanlang"
-echo -e "  3. Force HTTPS ni yoqing"
+echo -e "${YELLOW}[8/8] Yakuniy tekshirish...${NC}"
+sleep 1
+curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/ | grep -q "302\|200" && \
+    echo -e "${GREEN}Sayt ishlayapti!${NC}" || \
+    echo -e "${YELLOW}Sayt hali yuklanmoqda, biroz kuting...${NC}"
 
 echo ""
 echo -e "${GREEN}================================================${NC}"
@@ -183,7 +199,8 @@ echo ""
 echo -e "Sayt:      ${GREEN}http://${DOMAIN}${NC}"
 echo -e "Admin:     ${GREEN}admin / admin${NC}"
 echo ""
-echo -e "${YELLOW}Muhim: aaPanel dan SSL o'rnatishni unutmang!${NC}"
+echo -e "${YELLOW}SSL ni aaPanel dan o'rnating:${NC}"
+echo -e "  aaPanel > Website > ${DOMAIN} > SSL > Let's Encrypt"
 echo ""
 echo -e "Ma'lumotlar bazasi:"
 echo -e "  Baza nomi:      ${DB_NAME}"
@@ -194,7 +211,6 @@ echo -e "Foydali buyruqlar:"
 echo -e "  ${GREEN}systemctl restart avtotestprime${NC}  - Serverni qayta ishga tushirish"
 echo -e "  ${GREEN}systemctl status avtotestprime${NC}   - Server holatini ko'rish"
 echo -e "  ${GREEN}journalctl -u avtotestprime -f${NC}   - Loglarni ko'rish"
-echo -e "  ${GREEN}cd ${PROJECT_DIR} && source venv/bin/activate${NC} - Virtual muhitga kirish"
 echo ""
 echo -e ".env fayli: ${PROJECT_DIR}/.env"
 echo -e "${YELLOW}Bu ma'lumotlarni xavfsiz joyga saqlang!${NC}"
