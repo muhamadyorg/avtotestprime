@@ -24,16 +24,17 @@ ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', _default_hosts).split(',')
 if '*' in ALLOWED_HOSTS:
     ALLOWED_HOSTS = ['*']
 
-CSRF_TRUSTED_ORIGINS = [
-    'https://avtotestprime.uz',
-    'https://www.avtotestprime.uz',
-    'https://bt.muhamadyorg.uz',
-    'https://www.bt.muhamadyorg.uz',
-    'http://bt.muhamadyorg.uz',
+_csrf_origins = []
+for _host in ALLOWED_HOSTS:
+    if _host and _host != '*':
+        _csrf_origins.append(f'http://{_host}')
+        _csrf_origins.append(f'https://{_host}')
+_csrf_origins.extend([
     'https://*.replit.dev',
     'https://*.repl.co',
     'https://*.replit.app',
-]
+])
+CSRF_TRUSTED_ORIGINS = _csrf_origins
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -107,5 +108,6 @@ LOGOUT_REDIRECT_URL = '/login/'
 
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
+    USE_SSL = os.environ.get('USE_SSL', 'False').lower() in ('true', '1', 'yes')
+    SESSION_COOKIE_SECURE = USE_SSL
+    CSRF_COOKIE_SECURE = USE_SSL
