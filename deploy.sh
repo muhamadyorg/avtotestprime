@@ -2,7 +2,8 @@
 set -e
 
 DOMAIN="avtotestprime.uz"
-PROJECT_DIR="/www/wwwroot/avtotestprime.uz"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$SCRIPT_DIR"
 DB_NAME="avtotestprime"
 DB_USER="avtotestprime"
 
@@ -237,31 +238,31 @@ else
         cp "$NGINX_CONF" "${NGINX_CONF}.bak.$(date +%s)"
     fi
 
-    cat > "$NGINX_CONF" <<'NGINXEOF'
+    cat > "$NGINX_CONF" <<NGINXEOF
 server {
     listen 80;
-    server_name avtotestprime.uz www.avtotestprime.uz;
+    server_name ${DOMAIN} www.${DOMAIN};
 
     client_max_body_size 20M;
-    access_log /var/log/nginx/avtotestprime.uz.log;
-    error_log /var/log/nginx/avtotestprime.uz.error.log;
+    access_log /var/log/nginx/${DOMAIN}.log;
+    error_log /var/log/nginx/${DOMAIN}.error.log;
 
     location /static/ {
-        alias /www/wwwroot/avtotestprime.uz/staticfiles/;
+        alias ${PROJECT_DIR}/staticfiles/;
         expires 30d;
     }
 
     location /media/ {
-        alias /www/wwwroot/avtotestprime.uz/media/;
+        alias ${PROJECT_DIR}/media/;
         expires 7d;
     }
 
     location / {
         proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_read_timeout 120;
         proxy_connect_timeout 120;
     }
